@@ -41,6 +41,7 @@ io.on("connection", function (uniquesocket) {
       delete players.black;
     }
   });
+
   uniquesocket.on("move", (move) => {
     try {
       if (chess.turn() === "w" && uniquesocket.id !== players.white) return;
@@ -60,6 +61,11 @@ io.on("connection", function (uniquesocket) {
       console.log(err);
       uniquesocket.emit("Invalid move: ", move);
     }
+  });
+
+  uniquesocket.on("resetGame", () => {
+    chess.reset();
+    io.emit("resetGame");
   });
 });
 

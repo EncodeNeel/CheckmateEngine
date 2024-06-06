@@ -1,132 +1,172 @@
-const socket = io();
-const chess = new Chess();
-const boardElement = document.querySelector(".chessboard");
+document.addEventListener("DOMContentLoaded", () => {
+  const socket = io();
+  const boardElement = document.querySelector(".chessboard");
+  const historyElement = document.getElementById("history");
+  const whiteCapturedElement = document.getElementById("white-captured");
+  const blackCapturedElement = document.getElementById("black-captured");
+  const resetButton = document.getElementById("reset");
+  const flipButton = document.getElementById("flip");
 
-let draggedPiece = null;
-let sourceSquare = null;
-let playerRole = null;
+  let board = null;
+  let isFlipped = false;
+  let role = null;
 
-const renderBoard = () => {
-  const board = chess.board();
-  boardElement.innerHTML = "";
-  board.forEach((row, rowindex) => {
-    row.forEach((square, squareindex) => {
-      const squareElement = document.createElement("div");
-      squareElement.classList.add(
-        "square",
-        (rowindex + squareindex) % 2 === 0 ? "light" : "dark"
-      );
+  socket.on("playerRole", (assignedRole) => {
+    role = assignedRole;
+    if (role === "b") {
+      isFlipped = true;
+      boardElement.classList.add("flipped");
+    }
+  });
 
-      squareElement.dataset.row = rowindex;
-      squareElement.dataset.col = squareindex;
+  socket.on("spectatorRole", () => {
+    role = "spectator";
+  });
 
-      if (square) {
+  socket.on("move", (move) => {
+    board.move(move);
+    updateBoard();
+    addMoveToHistory(move);
+    updateCapturedPieces();
+  });
+
+  socket.on("boardState", (fen) => {
+    board.load(fen);
+    updateBoard();
+  });
+
+  resetButton.addEventListener("click", () => {
+    socket.emit("resetGame");
+  });
+
+  flipButton.addEventListener("click", () => {
+    isFlipped = !isFlipped;
+    boardElement.classList.toggle("flipped");
+    updateBoard();
+  });
+
+  const initBoard = () => {
+    board = new Chess();
+    boardElement.innerHTML = "";
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        const square = document.createElement("div");
+        square.classList.add("square");
+        square.classList.add((i + j) % 2 === 0 ? "light" : "dark");
+        square.dataset.row = i;
+        square.dataset.col = j;
+        boardElement.appendChild(square);
+      }
+    }
+    updateBoard();
+  };
+
+  const updateBoard = () => {
+    const squares = document.querySelectorAll(".square");
+    squares.forEach((square) => {
+      square.innerHTML = "";
+      const row = parseInt(square.dataset.row);
+      const col = parseInt(square.dataset.col);
+      const piece = board.board()[row][col];
+      if (piece) {
         const pieceElement = document.createElement("div");
         pieceElement.classList.add(
           "piece",
-          square.color === "w" ? "white" : "black"
+          piece.color === "w" ? "white" : "black"
         );
-        pieceElement.innerText = getPieceUnicode(square);
-        pieceElement.draggable = playerRole === square.color;
-
-        pieceElement.addEventListener("dragstart", (e) => {
-          if (pieceElement.draggable) {
-            draggedPiece = pieceElement;
-            sourceSquare = { row: rowindex, col: squareindex };
-            e.dataTransfer.setData("text/plain", "");
-          }
-        });
-
-        pieceElement.addEventListener("dragend", (e) => {
-          draggedPiece = null;
-          sourceSquare = null;
-        });
-
-        squareElement.appendChild(pieceElement);
+        pieceElement.textContent = getPieceUnicode(piece.type, piece.color);
+        pieceElement.draggable = true;
+        pieceElement.addEventListener("dragstart", handleDragStart);
+        pieceElement.addEventListener("dragend", handleDragEnd);
+        square.appendChild(pieceElement);
       }
-
-      squareElement.addEventListener("dragover", function (e) {
-        e.preventDefault();
-      });
-
-      squareElement.addEventListener("drop", function (e) {
-        e.preventDefault();
-        if (draggedPiece) {
-          const targetSquare = {
-            row: parseInt(squareElement.dataset.row),
-            col: parseInt(squareElement.dataset.col),
-          };
-          handleMove(sourceSquare, targetSquare);
-        }
-      });
-
-      boardElement.appendChild(squareElement);
     });
+  };
+
+  const getPieceUnicode = (type, color) => {
+    const pieces = {
+      p: "♙",
+      r: "♖",
+      n: "♘",
+      b: "♗",
+      q: "♕",
+      k: "♔",
+    };
+    return color === "w" ? pieces[type] : pieces[type].toLowerCase();
+  };
+
+  const handleDragStart = (e) => {
+    e.dataTransfer.setData(
+      "text",
+      e.target.parentElement.dataset.row + e.target.parentElement.dataset.col
+    );
+    setTimeout(() => {
+      e.target.classList.add("dragging");
+    }, 0);
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove("dragging");
+  };
+
+  boardElement.addEventListener("dragover", (e) => {
+    e.preventDefault();
   });
-  if (playerRole === "b") {
-    boardElement.classList.add("flipped");
-  } else {
-    boardElement.classList.remove("flipped");
-  }
-};
 
-const handleMove = (source, target) => {
-  const move = {
-    from: `${String.fromCharCode(97 + source.col)}${8 - source.row}`,
-    to: `${String.fromCharCode(97 + target.col)}${8 - target.row}`,
-    promotion: "q", // Automatically promote to a queen
+  boardElement.addEventListener("drop", (e) => {
+    const from = e.dataTransfer.getData("text");
+    const to = e.target.dataset.row + e.target.dataset.col;
+    const move = {
+      from: `${String.fromCharCode(97 + parseInt(from[1]))}${
+        8 - parseInt(from[0])
+      }`,
+      to: `${String.fromCharCode(97 + parseInt(to[1]))}${8 - parseInt(to[0])}`,
+    };
+
+    if (board.turn() === "w" && role !== "w") return;
+    if (board.turn() === "b" && role !== "b") return;
+
+    if (board.move(move)) {
+      socket.emit("move", move);
+      updateBoard();
+      addMoveToHistory(move);
+      updateCapturedPieces();
+    }
+  });
+
+  const addMoveToHistory = (move) => {
+    const moveElement = document.createElement("li");
+    moveElement.textContent = `${move.from} - ${move.to}`;
+    historyElement.appendChild(moveElement);
+    historyElement.scrollTop = historyElement.scrollHeight;
   };
 
-  // Attempt to make the move on the local chessboard
-  const result = chess.move(move);
+  const updateCapturedPieces = () => {
+    const whiteCaptured = [];
+    const blackCaptured = [];
+    const history = board.history({ verbose: true });
 
-  if (result) {
-    // Emit the move to the server if it's valid
-    socket.emit("move", move);
-  } else {
-    console.log("Invalid move");
-  }
+    history.forEach((move) => {
+      if (move.captured) {
+        if (move.color === "w") {
+          blackCaptured.push(getPieceUnicode(move.captured, "b"));
+        } else {
+          whiteCaptured.push(getPieceUnicode(move.captured, "w"));
+        }
+      }
+    });
 
-  // Re-render the board
-  renderBoard();
-};
-
-const getPieceUnicode = (piece) => {
-  const UnicodePieces = {
-    p: "♟",
-    r: "♜",
-    n: "♞",
-    b: "♝",
-    q: "♛",
-    k: "♚",
-    P: "♙",
-    R: "♖",
-    N: "♘",
-    B: "♗",
-    Q: "♕",
-    K: "♔",
+    whiteCapturedElement.innerHTML = whiteCaptured.join("");
+    blackCapturedElement.innerHTML = blackCaptured.join("");
   };
-  return UnicodePieces[piece.type] || "";
-};
 
-socket.on("playerRole", function (role) {
-  playerRole = role;
-  renderBoard();
+  socket.on("resetGame", () => {
+    board.reset();
+    updateBoard();
+    historyElement.innerHTML = "";
+    whiteCapturedElement.innerHTML = "";
+    blackCapturedElement.innerHTML = "";
+  });
+
+  initBoard();
 });
-
-socket.on("spectatorRole", function () {
-  playerRole = null;
-  renderBoard();
-});
-
-socket.on("boardState", function (fen) {
-  chess.load(fen);
-  renderBoard();
-});
-
-socket.on("move", function (move) {
-  chess.move(move);
-  renderBoard();
-});
-
-renderBoard();

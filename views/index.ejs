@@ -74,10 +74,67 @@
       .flipped .piece {
         transform: rotate(180deg);
       }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      }
+
+      .controls {
+        display: flex;
+        justify-content: space-between;
+        width: 500px;
+        margin-top: 20px;
+      }
+
+      .move-history {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 20px;
+      }
+
+      .captured-pieces {
+        display: flex;
+        justify-content: space-between;
+        width: 500px;
+        margin-top: 20px;
+      }
+
+      .captured {
+        display: flex;
+        gap: 5px;
+      }
     </style>
   </head>
   <body class="bg-gray-900 flex items-center justify-center min-h-screen">
-    <div class="chessboard"></div>
+    <div class="container">
+      <div class="chessboard"></div>
+      <div class="controls">
+        <button id="reset" class="bg-red-500 text-white px-4 py-2 rounded">
+          Reset Game
+        </button>
+        <button id="flip" class="bg-blue-500 text-white px-4 py-2 rounded">
+          Flip Board
+        </button>
+      </div>
+      <div class="move-history bg-gray-800 p-4 rounded w-80">
+        <h3 class="text-center mb-2">Move History</h3>
+        <ul id="history" class="list-decimal list-inside"></ul>
+      </div>
+      <div class="captured-pieces">
+        <div class="captured bg-gray-800 p-4 rounded">
+          <h3 class="text-center mb-2">White Captured</h3>
+          <div id="white-captured"></div>
+        </div>
+        <div class="captured bg-gray-800 p-4 rounded">
+          <h3 class="text-center mb-2">Black Captured</h3>
+          <div id="black-captured"></div>
+        </div>
+      </div>
+    </div>
     <script
       src="https://cdn.socket.io/4.7.5/socket.io.min.js"
       integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO"
