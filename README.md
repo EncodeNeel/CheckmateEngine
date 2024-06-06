@@ -14,12 +14,6 @@ CheckmateEngine allows users to play chess with each other in real-time. It supp
 - Piece capturing
 - Responsive and intuitive user interface
 
-## Screenshots
-
-### Game Interface
-![Game Interface](C:\Users\dasin\OneDrive\Pictures\Screenshots)
-
-
 ## Installation
 
 # Clone the repository
