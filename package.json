@@ -1,13 +1,14 @@
 {
   "name": "checkmateengine",
   "version": "1.0.0",
-  "description": "",
+  "description": "Chess game engine with multiplayer support",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "vercel-build": "whatever command you use to build your project for Vercel deployment"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": ["chess", "game", "multiplayer"],
+  "author": "Your Name",
   "license": "ISC",
   "dependencies": {
     "chess.js": "^1.0.0-beta.8",
