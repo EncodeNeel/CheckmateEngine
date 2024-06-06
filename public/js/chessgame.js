@@ -36,34 +36,59 @@ const renderBoard = () => {
             e.dataTransfer.setData("text/plain", "");
           }
         });
-        pieceElement.addEventListener("dragged", (e) => {
+
+        pieceElement.addEventListener("dragend", (e) => {
           draggedPiece = null;
           sourceSquare = null;
         });
+
         squareElement.appendChild(pieceElement);
       }
 
       squareElement.addEventListener("dragover", function (e) {
         e.preventDefault();
       });
+
       squareElement.addEventListener("drop", function (e) {
         e.preventDefault();
         if (draggedPiece) {
-          const targetSource = {
+          const targetSquare = {
             row: parseInt(squareElement.dataset.row),
             col: parseInt(squareElement.dataset.col),
           };
-          handleMove(sourceSquare, targetSource);
+          handleMove(sourceSquare, targetSquare);
         }
       });
 
       boardElement.appendChild(squareElement);
     });
   });
+  if (playerRole === "b") {
+    boardElement.classList.add("flipped");
+  } else {
+    boardElement.classList.remove("flipped");
+  }
 };
 
-const handleMove = () => {
-  // Implement move handling logic
+const handleMove = (source, target) => {
+  const move = {
+    from: `${String.fromCharCode(97 + source.col)}${8 - source.row}`,
+    to: `${String.fromCharCode(97 + target.col)}${8 - target.row}`,
+    promotion: "q", // Automatically promote to a queen
+  };
+
+  // Attempt to make the move on the local chessboard
+  const result = chess.move(move);
+
+  if (result) {
+    // Emit the move to the server if it's valid
+    socket.emit("move", move);
+  } else {
+    console.log("Invalid move");
+  }
+
+  // Re-render the board
+  renderBoard();
 };
 
 const getPieceUnicode = (piece) => {
@@ -83,5 +108,25 @@ const getPieceUnicode = (piece) => {
   };
   return UnicodePieces[piece.type] || "";
 };
+
+socket.on("playerRole", function (role) {
+  playerRole = role;
+  renderBoard();
+});
+
+socket.on("spectatorRole", function () {
+  playerRole = null;
+  renderBoard();
+});
+
+socket.on("boardState", function (fen) {
+  chess.load(fen);
+  renderBoard();
+});
+
+socket.on("move", function (move) {
+  chess.move(move);
+  renderBoard();
+});
 
 renderBoard();
