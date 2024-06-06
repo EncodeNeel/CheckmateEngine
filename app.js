@@ -3,6 +3,7 @@ const socket = require("socket.io");
 const http = require("http");
 const { Chess } = require("chess.js");
 const path = require("path");
+const { log } = require("console");
 
 const app = express();
 const server = http.createServer(app);
@@ -46,11 +47,19 @@ io.on("connection", function (uniquesocket) {
       if (chess.turn() === "b" && uniquesocket.id !== players.black) return;
 
       const result = chess.move(move);
+
       if (result) {
         currentPlayer = chess.turn();
         io.emit("move", move);
+        io.emit("boardState", chess.fen());
+      } else {
+        console.log("Invalid move: ", move);
+        uniquesocket.emit("invalidMove", move);
       }
-    } catch (err) {}
+    } catch (err) {
+      console.log(err);
+      uniquesocket.emit("Invalid move: ", move);
+    }
   });
 });
 
